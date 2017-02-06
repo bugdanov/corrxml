@@ -124,7 +124,7 @@ while read JP4 ; do
 done < $FILELIST
 
 echo "<entry key=\"CORRECTION_PARAMETERS.sourcePaths\">$INDEX</entry>" >> $TEMPFILE
-echo '</properties>' $TEMPFILE
+echo '</properties>' >> $TEMPFILE
 
 if [ -n "$OUTFILE" ] ; then 
   mv $TEMPFILE "$OUTFILE"
