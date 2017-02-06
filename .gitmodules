@@ -1,0 +1,3 @@
+[submodule "progressive"]
+	path = progressive
+	url = https://github.com/bugdanov/progressive
