@@ -97,10 +97,7 @@ COUNTFILE=/tmp/count.$$.tmp
 echo 0 > $COUNTFILE
 
 getTimestamps() {
-    cat "$FILELIST" | while read JP4 ; do
-        b=$(basename $JP4)
-        echo ${b:0:17}
-    done | sort -u
+  sed -r -n -e 's/.*([0-9]{10}_[0-9]{6}).*/\1/p'
 }
 
 getfilelist() {
@@ -112,53 +109,13 @@ getfilelist() {
     grep -E -e "${TIMESTAMP}_[0-9]+.jp4" "$FILELIST"
   else
     if [ -n "$SHUFFLE" ] ; then
-      shuffile
+      cat "$FILELIST" | getTimestamps | sort -u | progressive | while read ts ; do
+        grep $ts "$FILELIST"
+      done
     else
       cat "$FILELIST"
     fi
   fi
-}
-
-# return shuffled (progressive) file list,
-# reducing the step by half recursively
-shuffile() {
-  local TMPFILE
-  TMPFILE=$(mktemp --tmpdir=/dev/shm)
-  argv=($(getTimestamps))
-  argc=${#argv[*]}
-  last=$((argc - 1))
-  [ $last -eq 0 ] && last=1
-  step=$(expr $argc / 2)
-  [ $step -eq 0 ] && step=1
-  while true ; do
-    for (( i=0; i<$argc ; i+=step )) ; do
-      stamp="${argv[$i]}"
-      if [ -n "$stamp" ] ; then
-        argv[$i]=
-        grep -E "${stamp}_[0-9]+.jp4" "$FILELIST" > $TMPFILE
-        jp4_count=$(cat $TMPFILE | wc -l)
-        if [ $jp4_count -eq 9 ] ; then
-          cat $TMPFILE
-        else
-          echo "Warning: $stamp discarded (jp4 count is $jp4_count)" >&2
-        fi
-      fi
-    done
-    if [ -n "${argv[$last]}" ] ; then
-      stamp=${argv[$last]}
-      argv[$last]=
-      grep -E "${stamp}_[0-9]+.jp4" "$FILELIST" > $TMPFILE
-      jp4_count=$(cat $TMPFILE | wc -l)
-      if [ $jp4_count -eq 9 ] ; then
-        cat $TMPFILE
-      else
-        echo "Warning: $stamp discarded (jp4 count is $jp4_count)" >&2
-      fi
-    fi
-    [ $step -eq 1 ] && break
-    ((step/=2))
-  done
-  rm $TMPFILE
 }
 
 getfilelist | while read JP4 ; do
