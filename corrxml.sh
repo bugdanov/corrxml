@@ -40,7 +40,8 @@
 [ -n "$DEBUG" ] && set -x
 
 usage() {
-cat << EOF
+cat 1>&2 << EOF
+
 NAME $(basename $0) - Generate xml file for imagej-elphel Eyesis_Correction
 
 SYNOPSIS
@@ -48,7 +49,7 @@ SYNOPSIS
 
     -b|--base_config <base_xml_config>    The imagej-elphel base xml config
 
-    -o|--output <output_file>             The resulting xml file
+    -o|--outfile <output_file>            Resulting xml file (optional)
 
     -f|--filelist <jp4_file_list>         The list of jp4 files to process,
                                           if not specified, read from stdin
@@ -64,19 +65,19 @@ SYNOPSIS
 DESCRIPTION
     The base config is stripped from existinig source paths.
 
-    The defined CORRECTION_PARAMETERS are set.
+    Command line specified CORRECTION_PARAMETERS are set.
 
-    They can also be specified as environment variables.
+    Correction parameters can also be specified as environment variables.
     eg: resultsDirectory=\$HOME/here $(basename $0) ...
 
-    Files in the given file list are added as sourcePaths in the output xml.
+    Files in the given file list are added as sourcePaths in the output.
 
 EOF
   exit 1
 }
 
   # parse command line options
-  if ! options=$(getopt -o hb:i:o:d: -l help,base-config:,input:,output:,define: -- "$@")
+  if ! options=$(getopt -o hb:f:o:d: -l help,base-config:,filelist:,outfile:,define: -- "$@")
   then
       # something went wrong, getopt will put out an error message for us
       exit 1
@@ -92,18 +93,17 @@ EOF
       -b|--base-config) BASE_CONFIG="$2" ; shift ;;
       -f|--filelist) FILELIST="$2" ; shift ;;
       -d|--define) eval "export $2" || usage ; shift ;;
-      -o|--output) OUTFILE="$2" ; shift  ;;
-      (--) shift; break;;
-      (-*) echo "$(basename $0): error - unrecognized option $1" 1>&2; exit 1;;
-      (*) break;;
+      -o|--outfile) OUTFILE="$2" ; shift  ;;
+      (--) shift; break ;;
+      (-*) echo "$(basename $0): ERROR: unrecognized option $1" 1>&2; usage ;;
       esac
       shift
   done
- 
+
+  [ $# -gt 0 ] && echo "$(basename $0): ERROR: unrecognized option: $1" 1>&2 && usage
 
 [ -f "$BASE_CONFIG" ] || usage
 TEMPFILE=$(mktemp)
-
 
 # remove sourcePaths and ending tag from base config
 egrep -v -e 'CORRECTION_PARAMETERS\.sourcePaths' -e 'CORRECTION_PARAMETERS.sourcePath[0-9]+' -e '</properties>' "$BASE_CONFIG" > $TEMPFILE
@@ -119,8 +119,8 @@ done
 # add files from list
 INDEX=0
 while read JP4 ; do
-  ((++INDEX))
   echo "<entry key=\"CORRECTION_PARAMETERS.sourcePath${INDEX}\">$JP4</entry>" >> $TEMPFILE
+  ((++INDEX))
 done < $FILELIST
 
 echo "<entry key=\"CORRECTION_PARAMETERS.sourcePaths\">$INDEX</entry>" >> $TEMPFILE
